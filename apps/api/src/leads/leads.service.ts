@@ -26,7 +26,15 @@ export class LeadsService {
     return lead;
   }
 
-  async create(dto: CreateLeadDto): Promise<Lead> {
+  async create(dto: CreateLeadDto, queryParams: Record<string, string> = {}): Promise<Lead> {
+    // Extract UTM parameters from query string
+    const utmParams: Record<string, string> = {};
+    for (const [key, value] of Object.entries(queryParams)) {
+      if (key.startsWith('utm_')) {
+        utmParams[key] = value;
+      }
+    }
+
     const lead = createLead(
       dto.pageId,
       dto.brandId,
@@ -34,8 +42,25 @@ export class LeadsService {
       dto.email,
       dto.phone,
       dto.message,
-      dto.metadata,
+      { ...dto.metadata, ...utmParams },
     );
+
+    // Append source tracking to notes for brand visibility
+    if (Object.keys(utmParams).length > 0) {
+      const sourceInfo = Object.entries(utmParams)
+        .map(([k, v]) => `${k}=${v}`)
+        .join(', ');
+      lead.notes = lead.notes
+        ? `${lead.notes} | Source: ${sourceInfo}`
+        : `Source: ${sourceInfo}`;
+    }
+
+    // Include message in notes for quick brand reference
+    if (dto.message) {
+      lead.notes = lead.notes
+        ? `${dto.message} | ${lead.notes}`
+        : dto.message;
+    }
 
     this.leads.push(lead);
     return lead;
