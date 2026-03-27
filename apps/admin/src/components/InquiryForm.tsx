@@ -8,9 +8,11 @@ interface InquiryFormProps {
   brandId: string;
   brandName?: string;
   primaryColor?: string;
+  showPhone?: boolean;
+  requireMessage?: boolean;
 }
 
-export function InquiryForm({ pageId, brandId, brandName, primaryColor = '#1a1a2e' }: InquiryFormProps) {
+export function InquiryForm({ pageId, brandId, brandName, primaryColor = '#1a1a2e', showPhone = true, requireMessage = false }: InquiryFormProps) {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -34,8 +36,12 @@ export function InquiryForm({ pageId, brandId, brandName, primaryColor = '#1a1a2
       newErrors.email = 'Please enter a valid email';
     }
 
-    if (formData.phone && formData.phone.replace(/\D/g, '').length < 10) {
+    if (showPhone && formData.phone && formData.phone.replace(/\D/g, '').length < 10) {
       newErrors.phone = 'Please enter a valid phone number';
+    }
+
+    if (requireMessage && !formData.message.trim()) {
+      newErrors.message = 'Message is required';
     }
 
     setErrors(newErrors);
