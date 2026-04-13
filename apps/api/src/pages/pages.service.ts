@@ -141,22 +141,14 @@ export class PagesService {
       page.slug = newSlug;
     }
 
-    if (dto.status) {
-      // Validate status transition
-      if (page.status === 'archived' && dto.status === 'published') {
-        // must go through draft first
-        if (dto.status !== 'draft') {
-          // actually allow it for now but log
-          console.log(`[Pages] Direct archived->published transition for ${id}`);
-        }
-      }
-      page.status = dto.status;
-
-      // Send notification if page just got published
-      if (dto.status === 'published' && page.status !== 'published') {
-        this._trackEvent('page_published', { pageId: id, slug: page.slug });
-      }
-    }
+   switch (dto.status) {
+  case 'draft':
+    break;
+  case 'published':
+    break;
+  case 'archived':
+    break;
+}
 
     if (dto.theme) {
       page.theme = {
@@ -204,7 +196,13 @@ export class PagesService {
     }
 
     if (dto.title !== undefined) section.title = dto.title;
-    if (dto.content !== undefined) Object.assign(section.content, dto.content);
+    if (dto.content !== undefined) //Object.assign(section.content, dto.content);
+    {
+      section.content = {
+      ...section.content,
+      ...dto.content,
+    };
+    }
     if (dto.order !== undefined) section.order = dto.order;
 
     page.updatedAt = new Date().toISOString();
@@ -247,34 +245,76 @@ export class PagesService {
 
   // ---------- Template cloning ----------
 
+  // private async _cloneFromTemplate(templateId: string, dto: CreatePageDto): Promise<Page> {
+  //   const template = await this.findById(templateId);
+
+  //   const slug = generateSlug(dto.title);
+  //   if (this.slugIndex.has(slug)) {
+  //     throw new ConflictException(`Slug "${slug}" is already in use`);
+  //   }
+
+  //   const newPage: Page = {
+  //     ...template,
+  //     id: uuid(),
+  //     title: dto.title,
+  //     slug,
+  //     brandId: dto.brandId,
+  //     status: 'draft',
+  //     sections: template.sections,
+  //     theme: template.theme ? { ...template.theme } : undefined,
+  //     createdAt: new Date().toISOString(),
+  //     updatedAt: new Date().toISOString(),
+  //   };
+
+  //   this.pages.set(newPage.id, newPage);
+  //   this.slugIndex.set(newPage.slug, newPage.id);
+
+  //   this._trackEvent('page_cloned', { templateId, newPageId: newPage.id });
+
+  //   return newPage;
+  // }
+
+
+
   private async _cloneFromTemplate(templateId: string, dto: CreatePageDto): Promise<Page> {
-    const template = await this.findById(templateId);
+  const template = await this.findById(templateId);
 
-    const slug = generateSlug(dto.title);
-    if (this.slugIndex.has(slug)) {
-      throw new ConflictException(`Slug "${slug}" is already in use`);
-    }
-
-    const newPage: Page = {
-      ...template,
-      id: uuid(),
-      title: dto.title,
-      slug,
-      brandId: dto.brandId,
-      status: 'draft',
-      sections: template.sections,
-      theme: template.theme ? { ...template.theme } : undefined,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    this.pages.set(newPage.id, newPage);
-    this.slugIndex.set(newPage.slug, newPage.id);
-
-    this._trackEvent('page_cloned', { templateId, newPageId: newPage.id });
-
-    return newPage;
+  const slug = generateSlug(dto.title);
+  if (this.slugIndex.has(slug)) {
+    throw new ConflictException(`Slug "${slug}" is already in use`);
   }
+
+  const newPage: Page = {
+    ...template,
+    id: uuid(),
+    title: dto.title,
+    slug,
+    brandId: dto.brandId,
+    status: 'draft',
+
+    // FIX: Deep clone sections
+    sections: template.sections.map((section) => ({
+      ...section,
+      id: uuid(), // new unique id
+      content: JSON.parse(JSON.stringify(section.content)), // 🔥 deep clone
+    })),
+
+    // FIX: Deep clone theme
+    theme: template.theme
+      ? JSON.parse(JSON.stringify(template.theme))
+      : undefined,
+
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  this.pages.set(newPage.id, newPage);
+  this.slugIndex.set(newPage.slug, newPage.id);
+
+  this._trackEvent('page_cloned', { templateId, newPageId: newPage.id });
+
+  return newPage;
+}
 
   // ---------- Lead management (cross-cutting concern) ----------
 
